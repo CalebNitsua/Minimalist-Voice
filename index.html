@@ -1,0 +1,834 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Minimal Voice</title>
+    <style>
+        /* --- VARIABLES --- */
+        :root {
+            --bg: #f5f5f4;
+            --text-main: #1c1917;
+            --text-muted: #78716c;
+            --card-bg: #e7e5e4;
+            --primary: #1c1917;
+            --danger: #ef4444;        
+            --success: #16a34a;       
+            --warning: #f59e0b;       
+            --input-bg: #f5f5f4;
+            --font-main: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            --font-mono: "SF Mono", "Roboto Mono", monospace; 
+        }
+
+        body.dark-mode {
+            --bg: #0c0a09;
+            --text-main: #f5f5f4;
+            --text-muted: #a8a29e;
+            --card-bg: #292524;
+            --primary: #fafaf9;
+            --danger: #f87171;
+            --success: #22c55e;
+            --warning: #fbbf24;
+            --input-bg: #1c1917;
+        }
+
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        
+        body {
+            font-family: var(--font-main);
+            background-color: var(--bg);
+            color: var(--text-main);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            overscroll-behavior-y: none; 
+        }
+
+        /* --- Header --- */
+        .app-header {
+            width: 100%;
+            max-width: 380px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+
+        h1 { font-size: 22px; margin: 0; letter-spacing: -0.02em; }
+
+        .theme-btn {
+            background: var(--card-bg);
+            border: none;
+            color: var(--text-main);
+            width: 36px;
+            height: 36px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 18px;
+            transition: background-color 0.3s;
+        }
+
+        /* --- Card --- */
+        .card {
+            background: var(--card-bg);
+            border-radius: 20px;
+            padding: 20px;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+            border: 1px solid rgba(0,0,0,0.03);
+            width: 100%;
+            max-width: 380px;
+            height: 650px;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            position: relative;
+        }
+
+        /* --- Visualizer --- */
+        .visualizer-container {
+            width: 100%;
+            height: 100px;
+            background: var(--input-bg);
+            border-radius: 16px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+        canvas { width: 100%; height: 100%; display: block;}
+
+        /* --- Timer --- */
+        .timer-display {
+            font-family: var(--font-mono);
+            font-size: 3rem;
+            font-weight: 700;
+            letter-spacing: -2px;
+            color: var(--text-main);
+            text-align: center;
+            margin: 0 0 20px 0;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .status-text {
+            text-align: center;
+            color: var(--text-muted);
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 4px;
+            height: 14px;
+        }
+
+        /* --- Lists --- */
+        .list-container {
+            flex: 1;
+            overflow-y: auto;
+            border-top: 1px dashed var(--text-muted);
+            padding-top: 10px;
+            scrollbar-width: thin;
+            scrollbar-color: var(--text-muted) transparent;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .recording-item {
+            position: relative;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 14px 10px;
+            border-bottom: 1px solid rgba(0,0,0,0.05);
+            transition: all 0.2s;
+            overflow: hidden;
+            border-radius: 6px;
+        }
+        
+        .rec-info { display: flex; flex-direction: column; z-index: 2; flex: 1; min-width: 0; padding-right: 10px; }
+        
+        .rec-name { 
+            font-size: 14px; 
+            font-weight: 600; 
+            color: var(--text-main); 
+            outline: none;
+            border-bottom: 1px solid transparent;
+            cursor: text;
+            width: fit-content;
+            transition: border-color 0.2s;
+        }
+        .rec-name:focus { border-bottom-color: var(--text-muted); }
+        .rec-name:hover { opacity: 0.8; }
+
+        .rec-meta { font-size: 11px; color: var(--text-muted); font-family: var(--font-mono); margin-top: 4px; }
+        
+        .text-danger-small { color: var(--danger) !important; font-weight: 600; }
+
+        /* --- Progress Bar --- */
+        .playback-bar-bg {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 12px;
+            background: transparent;
+            z-index: 5;
+            cursor: pointer;
+            display: flex;
+            align-items: flex-end; 
+        }
+        .playback-bar-bg:hover .playback-track { opacity: 0.1; }
+
+        .playback-track {
+            width: 100%;
+            height: 4px;
+            background: var(--text-main);
+            opacity: 0.05;
+            position: absolute;
+            bottom: 0;
+        }
+
+        .playback-bar-fill {
+            height: 4px;
+            background: var(--text-main);
+            width: 0%;
+            opacity: 0.3;
+            pointer-events: none;
+            position: absolute;
+            bottom: 0;
+            z-index: 1;
+        }
+        
+        .recording-item.playing .playback-bar-fill { opacity: 1; }
+        .recording-item.playing { background: rgba(0,0,0,0.02); }
+
+        /* --- Bookmarks (Flags) on Timeline --- */
+        .bookmark-dot {
+            position: absolute;
+            bottom: -1px;
+            width: 6px;
+            height: 6px;
+            background: var(--warning); 
+            border-radius: 50%;
+            z-index: 3;
+            transform: translateX(-50%);
+            pointer-events: none; 
+            border: 1px solid var(--card-bg);
+        }
+        .playback-bar-bg:hover .bookmark-dot { transform: translateX(-50%) scale(1.5); }
+
+        /* --- Icons --- */
+        .rec-actions {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            z-index: 6; 
+        }
+
+        .icon-btn {
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 6px;
+            color: var(--text-main);
+            opacity: 0.4;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .icon-btn:hover { opacity: 1; transform: scale(1.1); }
+        .icon-btn svg { width: 18px; height: 18px; fill: currentColor; }
+
+        /* --- Archive --- */
+        .archive-section {
+            margin-top: auto;
+            border-top: 1px solid rgba(0,0,0,0.05);
+            flex-shrink: 0;
+        }
+        .archive-header {
+            padding: 10px;
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-muted);
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .archive-header:hover { color: var(--text-main); }
+        .archive-list {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease;
+            background: var(--input-bg);
+        }
+        .archive-list.open { max-height: 150px; overflow-y: auto; }
+        .archive-list .recording-item { padding-left: 15px; opacity: 0.7; }
+
+        /* --- Controls --- */
+        .controls-wrapper {
+            margin-top: 10px;
+            display: flex;
+            gap: 10px;
+            width: 100%;
+            flex-shrink: 0;
+        }
+
+        button.ctrl-btn {
+            border: none;
+            padding: 16px;
+            border-radius: 14px;
+            font-weight: 600;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.2s;
+            flex: 1;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+        button.ctrl-btn:active { transform: scale(0.97); }
+
+        .btn-green { background-color: var(--success); color: white; }
+        .btn-red { background-color: var(--danger); color: white; }
+        .btn-yellow { background-color: var(--warning); color: black; }
+        .btn-blue { background-color: #3b82f6; color: white; } 
+        .hidden { display: none !important; }
+
+    </style>
+</head>
+<body>
+
+    <div class="app-header">
+        <h1>Voice</h1>
+        <button id="themeToggle" class="theme-btn" onclick="toggleTheme()">☀️</button>
+    </div>
+
+    <div class="card">
+        
+        <div class="visualizer-container">
+            <canvas id="visualizer"></canvas>
+        </div>
+
+        <div class="status-text" id="status-text">Ready</div>
+        <div class="timer-display" id="timer-display">00:00</div>
+
+        <div class="list-container" id="recordings-list"></div>
+
+        <div class="archive-section">
+            <div class="archive-header" onclick="toggleArchive()">
+                <span>Archive</span>
+                <span id="archive-count">0</span>
+            </div>
+            <div class="archive-list" id="archive-list"></div>
+        </div>
+
+        <div class="controls-wrapper">
+            <button id="btn-start" class="ctrl-btn btn-green" onclick="startRecording()">
+                <span>●</span> Record
+            </button>
+
+            <button id="btn-flag" class="ctrl-btn btn-blue hidden" onclick="addBookmark()">
+                <span>⚑</span> Flag
+            </button>
+            <button id="btn-pause" class="ctrl-btn btn-yellow hidden" onclick="pauseRecording()">
+                <span>||</span> Pause
+            </button>
+
+            <button id="btn-resume" class="ctrl-btn btn-green hidden" onclick="resumeRecording()">
+                <span>▶</span> Resume
+            </button>
+            
+            <button id="btn-stop" class="ctrl-btn btn-red hidden" onclick="stopRecording()">
+                <span>■</span> Stop
+            </button>
+        </div>
+
+    </div>
+
+    <script>
+        // --- ICONS ---
+        const ICONS = {
+            play: `<svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>`,
+            pause: `<svg viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>`,
+            trash: `<svg viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>`,
+            restore: `<svg viewBox="0 0 24 24"><path d="M19 8l-4 4h3c0 3.31-2.69 6-6 6-1.01 0-1.97-.25-2.8-.7l-1.46 1.46C8.97 19.54 10.43 20 12 20c4.42 0 8-3.58 8-8h3l-4-4zM6 12c0-3.31 2.69-6 6-6 1.01 0 1.97.25 2.8.7l1.46-1.46C15.03 4.46 13.57 4 12 4 7.58 4 4 7.58 4 12H1l4 4 4-4H6z"/></svg>`,
+            download: `<svg viewBox="0 0 24 24"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>`
+        };
+
+        // --- THEME ---
+        function toggleTheme() {
+            document.body.classList.toggle('dark-mode');
+            const isDark = document.body.classList.contains('dark-mode');
+            document.getElementById('themeToggle').innerText = isDark ? '🌙' : '☀️';
+            localStorage.setItem('voiceTheme', isDark ? 'dark' : 'light');
+            
+            // Force Redraw of Line
+            if (!mediaRecorder || mediaRecorder.state === 'inactive') {
+                // Wait 50ms for CSS variables to update
+                setTimeout(() => {
+                    visualizerCtx.clearRect(0, 0, visualizerCtx.canvas.width, visualizerCtx.canvas.height);
+                    drawRestingLine();
+                }, 50);
+            }
+        }
+        if (localStorage.getItem('voiceTheme') === 'dark') {
+            document.body.classList.add('dark-mode');
+            document.getElementById('themeToggle').innerText = '🌙';
+        }
+
+        // --- INDEXEDDB PERSISTENCE ---
+        const DB_NAME = 'VoiceMemoDB';
+        const STORE_NAME = 'recordings';
+        let db;
+
+        function initDB() {
+            const request = indexedDB.open(DB_NAME, 2); 
+            request.onupgradeneeded = (e) => {
+                db = e.target.result;
+                if (!db.objectStoreNames.contains(STORE_NAME)) {
+                    db.createObjectStore(STORE_NAME, { keyPath: 'id', autoIncrement: true });
+                }
+            };
+            request.onsuccess = (e) => {
+                db = e.target.result;
+                loadRecordings(); 
+            };
+            request.onerror = (e) => console.error("DB Error", e);
+        }
+
+        function saveToDB(blob, durationString, durationMs, bookmarks) {
+            const transaction = db.transaction([STORE_NAME], 'readwrite');
+            const store = transaction.objectStore(STORE_NAME);
+            const now = new Date();
+            const record = {
+                blob: blob,
+                durationStr: durationString,
+                durationMs: durationMs, 
+                date: now,
+                bookmarks: bookmarks, 
+                archived: false,
+                expireTime: 0,
+                customName: `Voice Note` 
+            };
+            const req = store.add(record);
+            req.onsuccess = () => loadRecordings();
+        }
+
+        function updateRecord(id, updates) {
+            const transaction = db.transaction([STORE_NAME], 'readwrite');
+            const store = transaction.objectStore(STORE_NAME);
+            const req = store.get(id);
+            req.onsuccess = () => {
+                if(req.result) {
+                    const data = req.result;
+                    Object.assign(data, updates);
+                    store.put(data);
+                }
+            };
+        }
+
+        function deleteFromDB(id) {
+            const transaction = db.transaction([STORE_NAME], 'readwrite');
+            const store = transaction.objectStore(STORE_NAME);
+            store.delete(id);
+        }
+
+        function loadRecordings() {
+            const transaction = db.transaction([STORE_NAME], 'readonly');
+            const store = transaction.objectStore(STORE_NAME);
+            const req = store.getAll();
+            
+            req.onsuccess = () => {
+                ui.list.innerHTML = '';
+                ui.archiveList.innerHTML = '';
+                
+                const items = req.result;
+                items.sort((a,b) => b.id - a.id);
+                let count = items.length;
+
+                items.forEach(item => {
+                    const url = URL.createObjectURL(item.blob);
+                    const name = item.customName === "Voice Note" ? `Voice Note ${count}` : item.customName;
+                    renderItem(item.id, url, item, name);
+                    count--;
+                });
+                
+                ui.archiveCount.innerText = ui.archiveList.children.length;
+            };
+        }
+
+
+        // --- CORE VARS ---
+        let mediaRecorder, audioChunks = [], startTime, accumulatedTime = 0, timerInterval;
+        let audioCtx, analyser, visualizerCtx = document.getElementById('visualizer').getContext('2d'), dataArray, animationId;
+        let wavePhase = 0;
+        let currentBookmarks = []; 
+
+        const ui = {
+            start: document.getElementById('btn-start'),
+            pause: document.getElementById('btn-pause'),
+            resume: document.getElementById('btn-resume'),
+            stop: document.getElementById('btn-stop'),
+            flag: document.getElementById('btn-flag'),
+            status: document.getElementById('status-text'),
+            timer: document.getElementById('timer-display'),
+            list: document.getElementById('recordings-list'),
+            archiveList: document.getElementById('archive-list'),
+            archiveCount: document.getElementById('archive-count')
+        };
+
+        function initAudio() {
+            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        }
+
+        // --- RECORDING ---
+        async function startRecording() {
+            try {
+                initAudio();
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                const source = audioCtx.createMediaStreamSource(stream);
+                analyser = audioCtx.createAnalyser();
+                analyser.fftSize = 512;
+                source.connect(analyser);
+                
+                mediaRecorder = new MediaRecorder(stream);
+                audioChunks = [];
+                currentBookmarks = []; 
+
+                mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
+                mediaRecorder.onstop = () => {
+                    const blob = new Blob(audioChunks, { type: 'audio/mp3' });
+                    const finalDurationMs = accumulatedTime + (Date.now() - startTime);
+                    saveToDB(blob, ui.timer.innerText, finalDurationMs, currentBookmarks);
+                    stream.getTracks().forEach(t => t.stop());
+                };
+
+                mediaRecorder.start();
+                ui.start.classList.add('hidden');
+                ui.pause.classList.remove('hidden');
+                ui.stop.classList.remove('hidden');
+                ui.flag.classList.remove('hidden'); 
+                
+                ui.status.innerText = "Recording";
+                ui.status.style.color = "var(--danger)";
+
+                accumulatedTime = 0;
+                startTime = Date.now();
+                timerInterval = setInterval(updateTimer, 100);
+                visualizeCenterWave();
+            } catch (err) { alert("Mic access required"); }
+        }
+
+        function pauseRecording() {
+            if (mediaRecorder && mediaRecorder.state === 'recording') {
+                mediaRecorder.pause();
+                clearInterval(timerInterval);
+                accumulatedTime += Date.now() - startTime;
+                ui.pause.classList.add('hidden');
+                ui.flag.classList.add('hidden'); 
+                ui.resume.classList.remove('hidden');
+                ui.status.innerText = "Paused";
+                ui.status.style.color = "var(--warning)";
+                cancelAnimationFrame(animationId);
+            }
+        }
+
+        function resumeRecording() {
+            if (mediaRecorder && mediaRecorder.state === 'paused') {
+                mediaRecorder.resume();
+                startTime = Date.now();
+                timerInterval = setInterval(updateTimer, 100);
+                ui.resume.classList.add('hidden');
+                ui.pause.classList.remove('hidden');
+                ui.flag.classList.remove('hidden'); 
+                ui.status.innerText = "Recording";
+                ui.status.style.color = "var(--danger)";
+                visualizeCenterWave();
+            }
+        }
+
+        function stopRecording() {
+            if (mediaRecorder) {
+                mediaRecorder.stop();
+                clearInterval(timerInterval);
+                cancelAnimationFrame(animationId);
+                visualizerCtx.clearRect(0, 0, visualizerCtx.canvas.width, visualizerCtx.canvas.height);
+                drawRestingLine();
+
+                ui.start.classList.remove('hidden');
+                ui.pause.classList.add('hidden');
+                ui.resume.classList.add('hidden');
+                ui.stop.classList.add('hidden');
+                ui.flag.classList.add('hidden');
+                
+                ui.status.innerText = "Saved";
+                ui.status.style.color = "var(--success)";
+                ui.timer.innerText = "00:00";
+                setTimeout(() => { ui.status.innerText = "Ready"; ui.status.style.color = "var(--text-muted)"; }, 2000);
+            }
+        }
+
+        function addBookmark() {
+            const now = accumulatedTime + (Date.now() - startTime);
+            currentBookmarks.push(now);
+            
+            const btn = document.getElementById('btn-flag');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = `<span>✓</span>`;
+            setTimeout(() => btn.innerHTML = originalText, 500);
+        }
+
+        function updateTimer() {
+            const diff = accumulatedTime + (Date.now() - startTime);
+            const m = Math.floor(diff / 60000).toString().padStart(2, '0');
+            const s = Math.floor((diff % 60000) / 1000).toString().padStart(2, '0');
+            ui.timer.innerText = `${m}:${s}`;
+        }
+
+        // --- VISUALIZER ---
+        function drawRestingLine() {
+             const width = visualizerCtx.canvas.width;
+             const height = visualizerCtx.canvas.height;
+             const baseColor = getComputedStyle(document.body).getPropertyValue('--text-main').trim();
+             visualizerCtx.beginPath();
+             visualizerCtx.moveTo(0, height/2);
+             visualizerCtx.lineTo(width, height/2);
+             visualizerCtx.strokeStyle = baseColor;
+             visualizerCtx.lineWidth = 2;
+             visualizerCtx.stroke();
+        }
+
+        function visualizeCenterWave() {
+            const canvas = document.getElementById('visualizer');
+            const width = canvas.width;
+            const height = canvas.height;
+            const bufferLength = analyser.frequencyBinCount;
+            dataArray = new Uint8Array(bufferLength);
+            const baseColor = getComputedStyle(document.body).getPropertyValue('--text-main').trim();
+
+            function draw() {
+                animationId = requestAnimationFrame(draw);
+                analyser.getByteTimeDomainData(dataArray);
+                let sum = 0;
+                for (let i = 0; i < bufferLength; i++) {
+                    const amplitude = (dataArray[i] - 128) / 128;
+                    sum += amplitude * amplitude;
+                }
+                const rms = Math.sqrt(sum / bufferLength);
+                const volume = Math.min(rms * 8, 2.0); 
+
+                visualizerCtx.clearRect(0, 0, width, height);
+                visualizerCtx.beginPath();
+                visualizerCtx.lineWidth = 3;
+                visualizerCtx.strokeStyle = baseColor;
+                visualizerCtx.lineCap = 'round';
+                visualizerCtx.moveTo(0, height / 2);
+
+                for (let x = 0; x <= width; x += 2) {
+                    const s1 = Math.sin(x * 0.01 + wavePhase);
+                    const s2 = Math.sin(x * 0.03 + wavePhase * 1.5);
+                    const y = height / 2 + (s1 + s2) * (volume * height * 0.2);
+                    visualizerCtx.lineTo(x, y);
+                }
+                visualizerCtx.lineTo(width, height/2);
+                visualizerCtx.stroke();
+                wavePhase += 0.08;
+            }
+            draw();
+        }
+
+        // --- PLAYBACK & LIST ---
+        let currentAudio = null;
+        let activeItem = null;
+        let progressInterval;
+
+        function renderItem(id, url, data, displayName) {
+            const dateObj = new Date(data.date);
+            const dateStr = dateObj.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+            const timeStr = dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            const totalMs = data.durationMs || 1000; 
+
+            // Generate bookmarks
+            let bookmarksHtml = '';
+            if (data.bookmarks && data.bookmarks.length > 0) {
+                data.bookmarks.forEach(bmTime => {
+                    const pct = (bmTime / totalMs) * 100;
+                    bookmarksHtml += `<div class="bookmark-dot" style="left: ${pct}%" title="Flag at ${Math.floor(bmTime/1000)}s"></div>`;
+                });
+            }
+
+            const item = document.createElement('div');
+            item.className = 'recording-item';
+            item.dataset.id = id;
+            item.dataset.url = url;
+
+            if (data.archived) {
+                 item.innerHTML = `
+                    <div class="playback-bar-bg" style="pointer-events:none;">
+                        <div class="playback-track"></div>
+                        <div class="playback-bar-fill"></div>
+                    </div>
+                    <div class="rec-info">
+                        <span class="rec-name" contenteditable="false">${displayName}</span>
+                        <span class="rec-meta text-danger-small">Auto-deletes in 30 days</span>
+                    </div>
+                    <div class="rec-actions">
+                        <button class="icon-btn" onclick="restoreItem(${id})">${ICONS.restore}</button>
+                        <button class="icon-btn" onclick="deletePermanently(${id})">${ICONS.trash}</button>
+                    </div>
+                `;
+                ui.archiveList.appendChild(item);
+            } else {
+                item.innerHTML = `
+                    <div class="playback-bar-bg" onclick="seekAudio(event, this)">
+                        <div class="playback-track"></div>
+                        <div class="playback-bar-fill"></div>
+                        ${bookmarksHtml}
+                    </div>
+                    <div class="rec-info">
+                        <span class="rec-name" contenteditable="true" spellcheck="false" onblur="updateName(${id}, this)">${displayName}</span>
+                        <span class="rec-meta">${dateStr} ${timeStr} • ${data.durationStr || "00:00"}</span>
+                    </div>
+                    <div class="rec-actions">
+                        <button class="icon-btn" onclick="downloadItem('${url}')">${ICONS.download}</button>
+                        <button class="icon-btn btn-play" onclick="togglePlay(this, '${url}')">${ICONS.play}</button>
+                        <button class="icon-btn btn-trash" onclick="archiveItem(${id})">${ICONS.trash}</button>
+                    </div>
+                `;
+                ui.list.appendChild(item);
+            }
+        }
+
+        function updateName(id, el) {
+            updateRecord(id, { customName: el.innerText });
+        }
+
+        function togglePlay(btn, url) {
+            const item = btn.closest('.recording-item');
+            const barFill = item.querySelector('.playback-bar-fill');
+
+            if (activeItem === item && currentAudio) {
+                if (currentAudio.paused) {
+                    currentAudio.play();
+                    btn.innerHTML = ICONS.pause;
+                    item.classList.add('playing');
+                } else {
+                    currentAudio.pause();
+                    btn.innerHTML = ICONS.play;
+                    item.classList.remove('playing');
+                }
+                return;
+            }
+
+            stopPlayback();
+
+            currentAudio = new Audio(url);
+            activeItem = item;
+            
+            currentAudio.play();
+            btn.innerHTML = ICONS.pause;
+            item.classList.add('playing');
+            ui.status.innerText = "Playing...";
+
+            progressInterval = setInterval(() => {
+                if(currentAudio) {
+                    const pct = (currentAudio.currentTime / currentAudio.duration) * 100;
+                    barFill.style.width = `${pct}%`;
+                }
+            }, 50);
+
+            currentAudio.onended = () => stopPlayback();
+        }
+
+        function seekAudio(e, bgBar) {
+            const item = bgBar.closest('.recording-item');
+            if (activeItem !== item || !currentAudio) return;
+
+            const rect = bgBar.getBoundingClientRect();
+            const clickX = e.clientX - rect.left;
+            const pct = clickX / rect.width;
+
+            if (isFinite(currentAudio.duration)) {
+                currentAudio.currentTime = pct * currentAudio.duration;
+                item.querySelector('.playback-bar-fill').style.width = `${pct * 100}%`;
+            }
+        }
+
+        function downloadItem(url) {
+            const a = document.createElement('a');
+            a.style.display = 'none';
+            a.href = url;
+            a.download = `recording.mp3`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+        }
+
+        function stopPlayback() {
+            if (currentAudio) {
+                currentAudio.pause();
+                currentAudio = null;
+            }
+            if (activeItem) {
+                const btn = activeItem.querySelector('.btn-play');
+                if(btn) btn.innerHTML = ICONS.play;
+                activeItem.querySelector('.playback-bar-fill').style.width = '0%';
+                activeItem.classList.remove('playing');
+                activeItem = null;
+            }
+            clearInterval(progressInterval);
+            ui.status.innerText = "Ready";
+        }
+
+        const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
+
+        function archiveItem(id) {
+            if (activeItem && parseInt(activeItem.dataset.id) === id) stopPlayback();
+            updateRecord(id, { archived: true, expireTime: Date.now() + THIRTY_DAYS_MS });
+            setTimeout(loadRecordings, 100);
+        }
+
+        function restoreItem(id) {
+            updateRecord(id, { archived: false, expireTime: 0 });
+            setTimeout(loadRecordings, 100);
+        }
+
+        function deletePermanently(id) {
+            if(confirm("Delete permanently?")) {
+                deleteFromDB(id);
+                setTimeout(loadRecordings, 100);
+            }
+        }
+
+        function toggleArchive() { ui.archiveList.classList.toggle('open'); }
+        function updateArchiveCount() { ui.archiveCount.innerText = ui.archiveList.children.length; }
+
+        function cleanupArchive() {
+             // Future DB cleanup logic here
+        }
+        setInterval(cleanupArchive, 60000);
+
+        initDB();
+        
+        window.addEventListener('resize', () => {
+             const c = document.getElementById('visualizer');
+             c.width = c.clientWidth; 
+             c.height = c.clientHeight;
+             if(!mediaRecorder || mediaRecorder.state === 'inactive') drawRestingLine();
+        });
+        setTimeout(() => window.dispatchEvent(new Event('resize')), 100);
+
+    </script>
+</body>
+</html>
